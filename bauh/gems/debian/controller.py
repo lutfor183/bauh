@@ -486,8 +486,8 @@ class DebianPackageManager(SoftwareManager, SettingsController):
         self._enabled = enabled
 
     def can_work(self) -> Tuple[bool, Optional[str]]:
-        if not which('aptitude'):
-            return False, self._i18n['missing_dep'].format(dep=bold('aptitude'))
+        if not which('apt'):
+            return False, self._i18n['missing_dep'].format(dep=bold('apt'))
 
         return True, None
 

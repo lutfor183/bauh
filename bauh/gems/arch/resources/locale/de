@@ -314,3 +314,4 @@ gem.arch.info=Verfügbare Softwarepakete für Distributionen, die auf Arch Linux
 gem.arch.label=Arch
 gem.arch.type.arch_repo.label=Arch - Repository
 gem.arch.type.aur.label=Arch - AUR
+arch.uninstall.protected_packages=Cannot uninstall protected system packages: {}

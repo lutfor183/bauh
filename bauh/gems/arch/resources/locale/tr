@@ -314,3 +314,4 @@ gem.arch.info=Arch Linux tabanlı dağıtımlar için mevcut yazılım paketleri
 gem.arch.label=Arch
 gem.arch.type.arch_repo.label=Arch - Depoları
 gem.arch.type.aur.label=Arch - AUR
+arch.uninstall.protected_packages=Cannot uninstall protected system packages: {}

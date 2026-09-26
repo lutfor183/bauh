@@ -69,6 +69,22 @@ RE_DEPENDENCY_BREAKAGE = re.compile(r'\n?::\s+installing\s+(.+\s\(.+\))\sbreaks\
 RE_PKG_ENDS_WITH_BIN = re.compile(r'.+[\-_]bin$')
 
 
+PROTECTED_PACKAGES = frozenset({
+    'linux', 'linux-lts', 'linux-zen', 'linux-hardened', 'linux-ck',
+    'linux-cachyos', 'linux-xanmod', 'linux-tkg', 'linux-pf', 'linux-aws',
+    'linux-gentoo', 'linux-image', 'linux-image-unsigned',
+    'mkinitcpio', 'mkinitcpio-btrfs', 'mkinitcpio-zstd',
+    'device-mapper', 'lvm2', 'cryptsetup', 'intel-ucode', 'amd-ucode',
+    'systemd', 'systemd-sysvcompat', 'dbus', 'dbus-broker',
+    'glibc', 'glibc-common', 'glibc-locales',
+    'pacman', 'arch-install-scripts', 'arch-keyring',
+    'grub', 'grub-btrfs', 'systemd-boot', 'systemd-ukify',
+    'btrfs-progs', 'xfsprogs', 'e2fsprogs', 'dosfstools',
+    'openssh', 'networkmanager', 'systemd-networkd', 'iwd',
+    'fwupd', 'fwupd-efi', 'uefi-shell',
+})
+
+
 class TransactionContext:
 
     def __init__(self, aur_supported: bool, name: str = None, base: str = None, maintainer: str = None, watcher: ProcessWatcher = None,
@@ -1376,6 +1392,13 @@ class ArchManager(SoftwareManager, SettingsController):
 
         to_uninstall = set()
         to_uninstall.update(names)
+        removed_protected = names & PROTECTED_PACKAGES
+        if removed_protected:
+            context.watcher.show_message(title=self.i18n['error'].capitalize(),
+                                         body=self.i18n['arch.uninstall.protected_packages'].format(pkgs=', '.join(bold(p) for p in removed_protected)),
+                                         type_=MessageType.ERROR)
+            return False
+        to_uninstall -= PROTECTED_PACKAGES
 
         if hard_requirements:
             to_uninstall.update(hard_requirements)

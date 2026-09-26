@@ -3,37 +3,40 @@ import traceback
 from logging import Logger
 from typing import Optional, List
 
-from requests import Session
-from requests.adapters import HTTPAdapter
-from urllib3.connection import HTTPConnection
-from urllib3.connectionpool import HTTPConnectionPool
-
 from bauh.commons.system import run_cmd
 
-URL_BASE = 'http://snapd/v2'
+URL_BASE = 'http+unix://%2Frun%2Fsnapd.socket/v2'
 
+try:
+    import requests_unixsocket as requests
+    _USE_UNIXSOCKET = True
+except ImportError:
+    from requests import Session as _Session
+    from requests.adapters import HTTPAdapter
+    from urllib3.connection import HTTPConnection
+    from urllib3.connectionpool import HTTPConnectionPool
+    _USE_UNIXSOCKET = False
 
-class SnapdConnection(HTTPConnection):
-    def __init__(self):
-        super(SnapdConnection, self).__init__('localhost')
+    class SnapdConnection(HTTPConnection):
+        def __init__(self):
+            super(SnapdConnection, self).__init__('localhost')
 
-    def connect(self):
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.connect("/run/snapd.socket")
+        def connect(self):
+            self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.sock.connect("/run/snapd.socket")
 
+    class SnapdConnectionPool(HTTPConnectionPool):
+        def _new_conn(self):
+            return SnapdConnection()
 
-class SnapdConnectionPool(HTTPConnectionPool):
-    def __init__(self):
-        super(SnapdConnectionPool, self).__init__('localhost')
+    class SnapdAdapter(HTTPAdapter):
+        def get_connection(self, url, proxies=None):
+            return SnapdConnectionPool()
 
-    def _new_conn(self):
-        return SnapdConnection()
-
-
-class SnapdAdapter(HTTPAdapter):
-
-    def get_connection(self, url, proxies=None):
-        return SnapdConnectionPool()
+    class _Session(_Session):
+        def __init__(self):
+            super().__init__()
+            self.mount("http://snapd/", SnapdAdapter())
 
 
 class SnapdClient:
@@ -42,20 +45,22 @@ class SnapdClient:
         self.logger = logger
         self.session = self._new_session()
 
-    def _new_session(self) -> Optional[Session]:
+    def _new_session(self) -> Optional:
         try:
-            session = Session()
-            session.mount("http://snapd/", SnapdAdapter())
+            if _USE_UNIXSOCKET:
+                session = requests.Session()
+            else:
+                session = _Session()
             return session
         except Exception:
-            self.logger.error("Could not establish a connection to 'snapd.socker'")
+            self.logger.error("Could not establish a connection to 'snapd.socket'")
             traceback.print_exc()
 
     def query(self, query: str) -> Optional[List[dict]]:
         final_query = query.strip()
 
         if final_query and self.session:
-            res = self.session.get(url=f'{URL_BASE}/find', params={'q': final_query})
+            res = self.session.get(url=URL_BASE + '/find', params={'q': final_query})
 
             if res.status_code == 200:
                 json_res = res.json()
@@ -65,7 +70,7 @@ class SnapdClient:
 
     def find_by_name(self, name: str) -> Optional[List[dict]]:
         if name and self.session:
-            res = self.session.get(f'{URL_BASE}/find?name={name}')
+            res = self.session.get(URL_BASE + '/find?name=' + name)
 
             if res.status_code == 200:
                 json_res = res.json()
@@ -75,7 +80,7 @@ class SnapdClient:
 
     def list_all_snaps(self) -> List[dict]:
         if self.session:
-            res = self.session.get(f'{URL_BASE}/snaps')
+            res = self.session.get(URL_BASE + '/snaps')
 
             if res.status_code == 200:
                 json_res = res.json()
@@ -87,7 +92,7 @@ class SnapdClient:
 
     def list_only_apps(self) -> List[dict]:
         if self.session:
-            res = self.session.get(f'{URL_BASE}/apps')
+            res = self.session.get(URL_BASE + '/apps')
 
             if res.status_code == 200:
                 json_res = res.json()
@@ -98,7 +103,7 @@ class SnapdClient:
 
     def list_commands(self, name: str) -> List[dict]:
         if self.session:
-            res = self.session.get(f'{URL_BASE}/apps?names={name}')
+            res = self.session.get(URL_BASE + '/apps?names=' + name)
 
             if res.status_code == 200:
                 json_res = res.json()

@@ -186,6 +186,14 @@ def uninstall(app_ref: str, installation: str, version: Tuple[str, ...]) -> Simp
                          shell=True)
 
 
+
+def clean_unused(version: Tuple[str, ...]) -> SimpleProcess:
+    return SimpleProcess(cmd=('flatpak', 'uninstall', '--unused', '-y'),
+                          extra_paths={EXPORTS_PATH},
+                          lang=DEFAULT_LANG if version < VERSION_1_12 else None,
+                          shell=True)
+
+
 def _new_updates() -> Dict[str, Set[str]]:
     return {'full': set(), 'partial': set()}
 

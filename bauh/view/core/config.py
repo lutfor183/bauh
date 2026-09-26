@@ -34,7 +34,7 @@ class CoreConfigManager(YAMLConfigManager):
             },
             'ui': {
                 'table': {
-                    'max_displayed': 50
+                    'max_displayed': 0
                 },
                 'tray': {
                     'default_icon': None,

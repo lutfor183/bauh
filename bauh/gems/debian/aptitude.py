@@ -37,6 +37,7 @@ class Aptitude:
 
     def __init__(self, logger: Logger):
         self._log = logger
+        self._use_apt = not system.check_installed('aptitude')
         self._re_show_attr: Optional[Pattern] = None
         self._env: Optional[Dict[str, str]] = None
         self._list_attrs: Optional[Set[str]] = None
@@ -54,8 +55,11 @@ class Aptitude:
 
         if pkgs:
             force_verbose = verbose if verbose else ('compressed size' in attrs if attrs else False)
-            code, output = system.execute(f"aptitude show -q {' '.join(pkgs)}{' -v' if force_verbose else ''}",
-                                          shell=True, custom_env=self.env)
+            if self._use_apt:
+                cmd = f"apt show -q {' '.join(pkgs)}"
+            else:
+                cmd = f"aptitude show -q {' '.join(pkgs)}{' -v' if force_verbose else ''}"
+            code, output = system.execute(cmd, shell=True, custom_env=self.env)
 
             if code == 0 and output:
                 info, pkg = dict(), None
@@ -134,7 +138,8 @@ class Aptitude:
                              preserve_env=self._preserve_env)
 
     def update(self, root_password: Optional[str]) -> SimpleProcess:
-        return SimpleProcess(('aptitude', 'update'), root_password=root_password, shell=True)
+        cmd = 'apt' if self._use_apt else 'aptitude'
+        return SimpleProcess((cmd, 'update'), root_password=root_password, shell=True)
 
     def simulate_installation(self, packages: Iterable[str]) -> Optional[DebianTransaction]:
         code, output = system.execute(self.gen_transaction_cmd('install', packages, simulate=True),
@@ -152,7 +157,11 @@ class Aptitude:
         yield from self.search(query='~i')
 
     def read_updates(self) -> Generator[Tuple[str, str], None, None]:
-        _, output = system.execute(f"aptitude search ~U -q -F '%p^%V' --disable-columns --no-gui",
+        if self._use_apt:
+            cmd = "apt list --upgradable 2>/dev/null | tail -n +2 | cut -d'/' -f1"
+            _, output = system.execute(cmd, shell=True, custom_env=self.env)
+        else:
+            _, output = system.execute(f"aptitude search ~U -q -F '%p^%V' --disable-columns --no-gui",
                                    shell=True,
                                    custom_env=self.env)
 
@@ -165,7 +174,11 @@ class Aptitude:
 
     def search(self, query: str, fill_size: bool = False) -> Generator[DebianPackage, None, None]:
         attrs = f"%p^%v^%V^%m^%s^{'%I^' if fill_size else ''}%d"
-        _, output = system.execute(f"aptitude search {query} -q -F '{attrs}' --disable-columns", shell=True)
+        if self._use_apt:
+            cmd = f"apt search {query} -q --no-update"
+        else:
+            cmd = f"aptitude search {query} -q -F '{attrs}' --disable-columns"
+        _, output = system.execute(cmd, shell=True)
 
         if output:
             no_attrs = 7 if fill_size else 6
@@ -206,7 +219,11 @@ class Aptitude:
                              root_password=root_password, extra_env=self.vars_fixes, preserve_env=self._preserve_env)
 
     def read_installed_names(self) -> Generator[str, None, None]:
-        code, output = system.execute("aptitude search ~i -q -F '%p' --disable-columns",
+        if self._use_apt:
+            cmd = "apt list --installed 2>/dev/null | tail -n +2 | cut -d'/' -f1"
+            code, output = system.execute(cmd, shell=True, custom_env=self.env)
+        else:
+            code, output = system.execute("aptitude search ~i -q -F '%p' --disable-columns",
                                       shell=True,
                                       custom_env=self.env)
 

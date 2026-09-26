@@ -51,7 +51,10 @@ def get_distro():
     if os.path.exists('/etc/os-release'):
         with open('/etc/os-release', 'r') as os_release_file:
             for line in os_release_file:
-                if 'ID_LIKE=arch' in line:
+                line = line.strip()
+                if 'ID_LIKE=arch' in line or line.startswith('ID=') and 'arch' in line.lower():
+                    return 'arch'
+                if any(x in line for x in ['ID_CACHYOS', 'ID_MANJARO', 'ID_ENDLESS', 'ID_GARUDA', 'ID_ARCO', 'ID_HYPRUN']):
                     return 'arch'
 
     if os.path.exists('/proc/version'):

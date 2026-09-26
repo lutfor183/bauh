@@ -314,3 +314,4 @@ gem.arch.info=Пакеты программного обеспечения, до
 gem.arch.label=Arch
 gem.arch.type.arch_repo.label=Arch - Репозиторий
 gem.arch.type.aur.label=Arch - AUR
+arch.uninstall.protected_packages=Cannot uninstall protected system packages: {}

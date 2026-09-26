@@ -336,6 +336,8 @@ class FlatpakManager(SoftwareManager, SettingsController):
                                                                                  flatpak_version))
 
         if uninstalled:
+            # Clean up unused runtimes after uninstall
+            ProcessHandler(watcher).handle_simple(flatpak.clean_unused(flatpak_version))
             if self.suggestions_cache:
                 self.suggestions_cache.delete(pkg.id)
 
